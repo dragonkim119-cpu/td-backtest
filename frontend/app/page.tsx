@@ -44,10 +44,11 @@ export default function Home() {
   const [liveCandle, setLiveCandle] = useState<LiveCandle | null>(null);
   const [liveClose, setLiveClose] = useState<LiveCloseEvent | null>(null);
   const [isLive, setIsLive] = useState(false);
+  const [liveEnabled, setLiveEnabled] = useState(false);
 
   const [pnlRunTrigger, setPnlRunTrigger] = useState(0);
 
-  useRealtimeCandle(symbol, interval, result !== null && activeTab === "chart", {
+  useRealtimeCandle(symbol, interval, result !== null && activeTab === "chart" && liveEnabled, {
     onConnect: () => setIsLive(true),
     onDisconnect: () => setIsLive(false),
     onTick: (candle) => setLiveCandle(candle),
@@ -65,6 +66,7 @@ export default function Home() {
     setLiveCandle(null);
     setLiveClose(null);
     setIsLive(false);
+    setLiveEnabled(false);
     try {
       const data = await fetchBacktest({ symbol: sym, interval: iv, start, end });
       setResult(data);
@@ -133,16 +135,34 @@ export default function Home() {
               placeholder="BTCUSDT"
             />
 
-            {/* LIVE badge — chart only */}
-            {activeTab === "chart" && isLive && (
-              <span className="flex items-center gap-1.5 text-xs border border-green-700 rounded px-1.5 py-0.5">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-green-400 font-medium">LIVE</span>
-                {liveCandle && (
+            {/* LIVE toggle button — chart only, visible after data loaded */}
+            {activeTab === "chart" && result && (
+              <button
+                onClick={() => setLiveEnabled((v) => !v)}
+                className={`flex items-center gap-1.5 text-xs border rounded px-1.5 py-0.5 transition-colors ${
+                  liveEnabled && isLive
+                    ? "!border-green-700 hover:!border-green-500"
+                    : liveEnabled
+                    ? "!border-yellow-700 hover:!border-yellow-500"
+                    : "!border-[#334155] !text-[#475569] hover:!border-[#475569]"
+                }`}
+              >
+                <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                  liveEnabled && isLive
+                    ? "bg-green-400 animate-pulse"
+                    : liveEnabled
+                    ? "bg-yellow-400 animate-pulse"
+                    : "bg-[#475569]"
+                }`} />
+                <span className={`font-medium ${
+                  liveEnabled && isLive ? "text-green-400" :
+                  liveEnabled ? "text-yellow-400" : "text-[#475569]"
+                }`}>LIVE</span>
+                {liveEnabled && isLive && liveCandle && (
                   <>
                     <span className="text-[#334155]">|</span>
                     <span className={
-                      result && liveCandle.close >= (result.candles.at(-1)?.close ?? liveCandle.close)
+                      liveCandle.close >= (result.candles.at(-1)?.close ?? liveCandle.close)
                         ? "text-green-400 font-mono font-bold"
                         : "text-red-400 font-mono font-bold"
                     }>
@@ -150,7 +170,7 @@ export default function Home() {
                     </span>
                   </>
                 )}
-              </span>
+              </button>
             )}
 
             <select value={interval} onChange={(e) => setInterval(e.target.value)}>
