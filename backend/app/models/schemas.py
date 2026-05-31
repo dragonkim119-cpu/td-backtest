@@ -1,0 +1,64 @@
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel
+
+
+class Candle(BaseModel):
+    open_time: int
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+
+
+class Signal(BaseModel):
+    type: Literal[
+        "buy_setup_9",
+        "sell_setup_9",
+        "buy_countdown_13",
+        "sell_countdown_13",
+        "recycle",
+        "cancel",
+    ]
+    direction: Literal["buy", "sell"]
+    bar_index: int
+    bar_time: int
+    entry_price: float
+    perfected: bool | None = None
+    deferral: bool = False
+    deferral_8v5: bool = False
+    risk_level: float | None = None
+    tdst_level: float | None = None
+    recycle_reason: Literal["extended", "size_match"] | None = None
+    cancel_reason: Literal["opposite_setup", "tdst_violation"] | None = None
+    price_after_5: float | None = None
+    price_after_10: float | None = None
+    price_after_20: float | None = None
+    return_5: float | None = None
+    return_10: float | None = None
+    return_20: float | None = None
+    max_favorable_20: float | None = None
+    max_adverse_20: float | None = None
+
+
+class TDSTLine(BaseModel):
+    direction: Literal["support", "resistance"]
+    level: float
+    start_bar_time: int
+    end_bar_time: int | None = None
+
+
+class BacktestResult(BaseModel):
+    symbol: str
+    interval: str
+    start_time: int
+    end_time: int
+    candles: list[Candle]
+    signals: list[Signal]
+    tdst_lines: list[TDSTLine]
+    setup_counts: list[int]
+    countdown_counts: list[int]
+    stats: dict[str, dict]
