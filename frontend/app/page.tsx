@@ -109,13 +109,13 @@ export default function Home() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`text-xs px-3 py-1 capitalize transition-colors ${
+              className={`text-xs px-3 py-1 transition-colors ${
                 activeTab === tab
                   ? "!bg-blue-600 !text-white"
                   : "!bg-[#0f172a] !text-[#64748b] hover:!text-[#94a3b8]"
               }`}
             >
-              {tab}
+              {tab === "pnl" ? "PnL" : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
