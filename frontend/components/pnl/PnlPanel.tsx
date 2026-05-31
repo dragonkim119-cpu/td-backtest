@@ -175,6 +175,40 @@ export function PnlPanel({ symbol, interval, startMs, endMs, runTrigger }: Props
           />
           <span className="text-[#94a3b8]">리사이클 후 제외</span>
         </label>
+
+        {/* Stop type toggle */}
+        <div className="flex items-center gap-1">
+          <span className="text-[#64748b] mr-1">손절</span>
+          {(["intrabar", "close"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setF("stopType", t)}
+              className={`px-2 py-0.5 rounded text-xs transition-colors ${
+                filters.stopType === t
+                  ? "!bg-blue-600 !text-white"
+                  : "!bg-[#1e293b] !text-[#64748b] hover:!text-[#94a3b8]"
+              }`}
+            >
+              {t === "intrabar" ? "봉내(저/고가)" : "종가"}
+            </button>
+          ))}
+        </div>
+
+        {/* Min R/R filter */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[#64748b]">최소 R/R</span>
+          <input
+            type="number"
+            min={0}
+            max={5}
+            step={0.5}
+            value={filters.minRr}
+            onChange={(e) => setF("minRr", parseFloat(e.target.value) || 0)}
+            className="w-14 text-right font-mono"
+          />
+          <span className="text-[#64748b]">:1</span>
+          <span className="text-[#475569] text-[10px]">(0=미적용, TDST 기준)</span>
+        </div>
       </div>
 
       {error && (

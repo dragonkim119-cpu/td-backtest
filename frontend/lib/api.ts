@@ -118,6 +118,8 @@ export interface PnlFilters {
   perfectedOnly: boolean;
   minRiskPct: number;
   skipPostRecycle: boolean;
+  stopType: "intrabar" | "close";
+  minRr: number;
 }
 
 export const DEFAULT_PNL_FILTERS: PnlFilters = {
@@ -125,6 +127,8 @@ export const DEFAULT_PNL_FILTERS: PnlFilters = {
   perfectedOnly: false,
   minRiskPct: 0,
   skipPostRecycle: false,
+  stopType: "intrabar",
+  minRr: 0,
 };
 
 export async function fetchPnlBacktest(params: {
@@ -144,6 +148,8 @@ export async function fetchPnlBacktest(params: {
   url.searchParams.set("perfected_only", String(f.perfectedOnly));
   url.searchParams.set("min_risk_pct", String(f.minRiskPct));
   url.searchParams.set("skip_post_recycle", String(f.skipPostRecycle));
+  url.searchParams.set("stop_type", f.stopType);
+  url.searchParams.set("min_rr", String(f.minRr));
   const res = await fetch(url.toString(), { cache: "no-store" });
   if (!res.ok) throw new Error(`PnL API error ${res.status}`);
   return res.json() as Promise<PnlBacktestResult>;

@@ -8,7 +8,7 @@ from fastapi.responses import ORJSONResponse
 
 from app.data.binance import get_candles
 from app.indicators.td_sequential import run as td_run
-from app.models.schemas import PnlTrade, PnlStats, PnlBacktestResult
+from app.models.schemas import PnlTrade, PnlStats, PnlBacktestResult, TDSTLine, Signal
 
 router = APIRouter()
 
@@ -57,14 +57,41 @@ def _build_stats(trades: list[PnlTrade], use_next_open: bool) -> PnlStats:
     )
 
 
+def _find_tdst_target(
+    sig: Signal,
+    tdst_lines: list[TDSTLine],
+    entry_close: float,
+) -> float | None:
+    """Nearest active TDST level in the trade's target direction at signal time."""
+    t = sig.bar_time
+    is_buy = sig.direction == "buy"
+    candidates: list[float] = []
+
+    for line in tdst_lines:
+        if line.start_bar_time > t:
+            continue
+        if line.end_bar_time is not None and line.end_bar_time <= t:
+            continue
+        if is_buy and line.direction == "resistance" and line.level > entry_close:
+            candidates.append(line.level)
+        elif (not is_buy) and line.direction == "support" and line.level < entry_close:
+            candidates.append(line.level)
+
+    if not candidates:
+        return None
+    return min(candidates, key=lambda x: abs(x - entry_close))
+
+
 def _compute_trades(
     df,
     entry_type: str = "setup9",
     perfected_only: bool = False,
     min_risk_pct: float = 0.0,
     skip_post_recycle: bool = False,
+    stop_type: str = "intrabar",   # "intrabar" | "close"
+    min_rr: float = 0.0,
 ) -> list[PnlTrade]:
-    signals, _, _, _ = td_run(df)
+    signals, tdst_lines, _, _ = td_run(df)
     n = len(df)
     closes = df["close"].values
     opens = df["open"].values
@@ -72,21 +99,19 @@ def _compute_trades(
     highs = df["high"].values
     open_times = df["open_time"].values
 
-    # Recycle bar set for skip_post_recycle filter
     recycle_bars: set[int] = {sig.bar_index for sig in signals if sig.type == "recycle"}
 
-    # Opposite setup lookup (exit condition for both entry types)
     opp_setup_at: dict[int, str] = {
         sig.bar_index: sig.type
         for sig in signals
         if sig.type in ("buy_setup_9", "sell_setup_9")
     }
 
-    # Determine which signal types to use as entries
-    if entry_type == "countdown13":
-        entry_signal_types = ("buy_countdown_13", "sell_countdown_13")
-    else:
-        entry_signal_types = ("buy_setup_9", "sell_setup_9")
+    entry_signal_types = (
+        ("buy_countdown_13", "sell_countdown_13")
+        if entry_type == "countdown13"
+        else ("buy_setup_9", "sell_setup_9")
+    )
 
     trades: list[PnlTrade] = []
 
@@ -95,12 +120,8 @@ def _compute_trades(
             continue
         if sig.risk_level is None:
             continue
-
-        # Perfected filter (setup9 only; countdown13 has no perfected flag)
         if entry_type == "setup9" and perfected_only and not sig.perfected:
             continue
-
-        # Skip if recycle fired on the same bar (trend-continuation warning)
         if skip_post_recycle and sig.bar_index in recycle_bars:
             continue
 
@@ -111,9 +132,18 @@ def _compute_trades(
 
         # Minimum stop distance filter
         if min_risk_pct > 0:
-            dist_pct = abs(entry_close - risk) / entry_close * 100
-            if dist_pct < min_risk_pct:
+            if abs(entry_close - risk) / entry_close * 100 < min_risk_pct:
                 continue
+
+        # R/R filter using TDST target
+        if min_rr > 0:
+            target = _find_tdst_target(sig, tdst_lines, entry_close)
+            if target is not None:
+                reward = abs(target - entry_close)
+                risk_dist = abs(entry_close - risk)
+                if risk_dist > 0 and reward / risk_dist < min_rr:
+                    continue
+            # No TDST target → allow trade (insufficient data to filter)
 
         entry_next_open = float(opens[i + 1]) if i + 1 < n else None
         opp_type = "sell_setup_9" if direction == "buy" else "buy_setup_9"
@@ -124,18 +154,31 @@ def _compute_trades(
         exit_type = "end_of_data"
 
         for j in range(i + 1, n):
-            # 1. Stop loss — intrabar breach
-            stop_hit = (direction == "buy" and float(lows[j]) < risk) or (
-                direction == "sell" and float(highs[j]) > risk
-            )
-            if stop_hit:
-                exit_price = risk
-                exit_time = int(open_times[j])
-                exit_bars = j - i
-                exit_type = "risk_level"
-                break
+            # Stop loss
+            if stop_type == "close":
+                # Exit only when candle CLOSES beyond risk level
+                stop_hit = (direction == "buy" and float(closes[j]) < risk) or (
+                    direction == "sell" and float(closes[j]) > risk
+                )
+                if stop_hit:
+                    exit_price = float(closes[j])   # actual close, not risk level
+                    exit_time = int(open_times[j])
+                    exit_bars = j - i
+                    exit_type = "risk_level"
+                    break
+            else:
+                # Exit intrabar when low/high breaches risk level
+                stop_hit = (direction == "buy" and float(lows[j]) < risk) or (
+                    direction == "sell" and float(highs[j]) > risk
+                )
+                if stop_hit:
+                    exit_price = risk
+                    exit_time = int(open_times[j])
+                    exit_bars = j - i
+                    exit_type = "risk_level"
+                    break
 
-            # 2. Opposite Setup 9 close
+            # Opposite Setup 9 close
             if opp_setup_at.get(j) == opp_type:
                 exit_price = float(closes[j])
                 exit_time = int(open_times[j])
@@ -181,6 +224,8 @@ def pnl_backtest_endpoint(
     perfected_only: bool = Query(False),
     min_risk_pct: float = Query(0.0),
     skip_post_recycle: bool = Query(False),
+    stop_type: Literal["intrabar", "close"] = Query("intrabar"),
+    min_rr: float = Query(0.0),
 ) -> ORJSONResponse:
     if start >= end:
         raise HTTPException(status_code=400, detail="start must be < end")
@@ -194,6 +239,8 @@ def pnl_backtest_endpoint(
         perfected_only=perfected_only,
         min_risk_pct=min_risk_pct,
         skip_post_recycle=skip_post_recycle,
+        stop_type=stop_type,
+        min_rr=min_rr,
     )
     result = PnlBacktestResult(
         symbol=symbol,
