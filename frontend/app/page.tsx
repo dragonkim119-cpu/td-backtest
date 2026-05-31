@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { fetchBacktest, type BacktestResult } from "@/lib/api";
+import { useRealtimeCandle, type LiveCandle, type LiveCloseEvent } from "@/lib/useRealtimeCandle";
 import { CandleChart } from "@/components/chart/CandleChart";
 import { SignalList } from "@/components/backtest/SignalList";
 import { StatsCard } from "@/components/backtest/StatsCard";
@@ -35,11 +36,28 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [focusBarIndex, setFocusBarIndex] = useState<number | null>(null);
 
+  const [liveCandle, setLiveCandle] = useState<LiveCandle | null>(null);
+  const [liveClose, setLiveClose] = useState<LiveCloseEvent | null>(null);
+  const [isLive, setIsLive] = useState(false);
+
+  useRealtimeCandle(symbol, interval, result !== null, {
+    onConnect: () => setIsLive(true),
+    onDisconnect: () => setIsLive(false),
+    onTick: (candle) => setLiveCandle(candle),
+    onClose: (event) => {
+      setLiveClose(event);
+      setLiveCandle(null);
+    },
+  });
+
   const handleRun = useCallback(async () => {
     setLoading(true);
     setError(null);
     setResult(null);
     setFocusBarIndex(null);
+    setLiveCandle(null);
+    setLiveClose(null);
+    setIsLive(false);
     try {
       const data = await fetchBacktest({ symbol, interval, start: startMs, end: endMs });
       setResult(data);
@@ -65,6 +83,13 @@ export default function Home() {
       <div className="flex items-center gap-3 px-4 py-2 border-b border-[#334155] flex-wrap">
         <span className="font-bold text-blue-400 text-lg">TD Sequential</span>
         <span className="text-[#64748b] text-sm">{symbol}</span>
+
+        {isLive && (
+          <span className="flex items-center gap-1 text-xs text-green-400 border border-green-700 rounded px-1.5 py-0.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            LIVE
+          </span>
+        )}
 
         <select value={interval} onChange={(e) => setInterval(e.target.value)}>
           {INTERVALS.map((iv) => (
@@ -116,7 +141,12 @@ export default function Home() {
         {/* Chart */}
         <div className="flex-1 overflow-hidden flex flex-col">
           {result ? (
-            <CandleChart data={result} focusBarIndex={focusBarIndex} />
+            <CandleChart
+              data={result}
+              focusBarIndex={focusBarIndex}
+              liveCandle={liveCandle}
+              liveClose={liveClose}
+            />
           ) : (
             <div className="flex-1 flex items-center justify-center text-[#334155] text-lg">
               {loading ? "Fetching data…" : "Select interval and click Run"}
