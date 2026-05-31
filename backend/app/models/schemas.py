@@ -51,6 +51,50 @@ class TDSTLine(BaseModel):
     end_bar_time: int | None = None
 
 
+class PnlTrade(BaseModel):
+    signal_type: Literal["buy_setup_9", "sell_setup_9"]
+    direction: Literal["buy", "sell"]
+    bar_time: int
+    risk_level: float
+    perfected: bool | None = None
+    # Entry at signal bar close
+    entry_close: float
+    # Entry at next bar open
+    entry_next_open: float | None = None
+    # Exit (same bar logic for both entries)
+    exit_price: float | None = None
+    exit_time: int | None = None
+    exit_bars: int | None = None
+    exit_type: Literal["risk_level", "end_of_data"] = "end_of_data"
+    # P&L
+    pnl_close_pct: float | None = None
+    pnl_next_open_pct: float | None = None
+
+
+class PnlStats(BaseModel):
+    total: int
+    won: int
+    lost: int
+    unrealized: int
+    win_rate_pct: float | None = None
+    avg_pnl_pct: float | None = None
+    avg_win_pct: float | None = None
+    avg_loss_pct: float | None = None
+    max_win_pct: float | None = None
+    max_loss_pct: float | None = None
+    avg_bars_held: float | None = None
+
+
+class PnlBacktestResult(BaseModel):
+    symbol: str
+    interval: str
+    start_time: int
+    end_time: int
+    trades: list[PnlTrade]
+    stats_close: PnlStats
+    stats_next_open: PnlStats
+
+
 class BacktestResult(BaseModel):
     symbol: str
     interval: str

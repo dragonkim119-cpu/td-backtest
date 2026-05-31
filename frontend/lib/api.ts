@@ -73,6 +73,62 @@ export interface ScreenerRow {
   error?: string | null;
 }
 
+export interface PnlTrade {
+  signal_type: string;
+  direction: "buy" | "sell";
+  bar_time: number;
+  risk_level: number;
+  perfected?: boolean | null;
+  entry_close: number;
+  entry_next_open?: number | null;
+  exit_price?: number | null;
+  exit_time?: number | null;
+  exit_bars?: number | null;
+  exit_type: "risk_level" | "end_of_data";
+  pnl_close_pct?: number | null;
+  pnl_next_open_pct?: number | null;
+}
+
+export interface PnlStats {
+  total: number;
+  won: number;
+  lost: number;
+  unrealized: number;
+  win_rate_pct?: number | null;
+  avg_pnl_pct?: number | null;
+  avg_win_pct?: number | null;
+  avg_loss_pct?: number | null;
+  max_win_pct?: number | null;
+  max_loss_pct?: number | null;
+  avg_bars_held?: number | null;
+}
+
+export interface PnlBacktestResult {
+  symbol: string;
+  interval: string;
+  start_time: number;
+  end_time: number;
+  trades: PnlTrade[];
+  stats_close: PnlStats;
+  stats_next_open: PnlStats;
+}
+
+export async function fetchPnlBacktest(params: {
+  symbol: string;
+  interval: string;
+  start: number;
+  end: number;
+}): Promise<PnlBacktestResult> {
+  const url = new URL(`${BASE}/api/pnl-backtest`);
+  url.searchParams.set("symbol", params.symbol);
+  url.searchParams.set("interval", params.interval);
+  url.searchParams.set("start", String(params.start));
+  url.searchParams.set("end", String(params.end));
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  if (!res.ok) throw new Error(`PnL API error ${res.status}`);
+  return res.json() as Promise<PnlBacktestResult>;
+}
+
 export async function fetchScreener(params: {
   symbols: string[];
   intervals: string[];

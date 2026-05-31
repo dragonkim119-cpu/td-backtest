@@ -7,6 +7,7 @@ import { CandleChart } from "@/components/chart/CandleChart";
 import { SignalList } from "@/components/backtest/SignalList";
 import { StatsCard } from "@/components/backtest/StatsCard";
 import { ScreenerPanel } from "@/components/screener/ScreenerPanel";
+import { PnlPanel } from "@/components/pnl/PnlPanel";
 
 const INTERVALS = ["15m", "1h", "4h", "1d", "3d", "1w"];
 
@@ -26,7 +27,7 @@ function toDateString(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
-type Tab = "chart" | "screener";
+type Tab = "chart" | "screener" | "pnl";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("chart");
@@ -104,7 +105,7 @@ export default function Home() {
 
         {/* Tabs */}
         <div className="flex border border-[#334155] rounded overflow-hidden">
-          {(["chart", "screener"] as Tab[]).map((tab) => (
+          {(["chart", "screener", "pnl"] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -193,6 +194,15 @@ export default function Home() {
       {activeTab === "screener" ? (
         <div className="flex-1 overflow-auto">
           <ScreenerPanel onSelect={handleSelectFromScreener} />
+        </div>
+      ) : activeTab === "pnl" ? (
+        <div className="flex-1 overflow-hidden">
+          <PnlPanel
+            symbol={symbol}
+            interval={interval}
+            startMs={startMs}
+            endMs={endMs}
+          />
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
