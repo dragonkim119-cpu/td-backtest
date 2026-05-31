@@ -90,6 +90,8 @@ def _compute_trades(
     skip_post_recycle: bool = False,
     stop_type: str = "intrabar",   # "intrabar" | "close"
     min_rr: float = 0.0,
+    tdst_takeprofit: bool = False,
+    max_bars: int = 0,
 ) -> list[PnlTrade]:
     signals, tdst_lines, _, _ = td_run(df)
     n = len(df)
@@ -99,7 +101,17 @@ def _compute_trades(
     highs = df["high"].values
     open_times = df["open_time"].values
 
-    recycle_bars: set[int] = {sig.bar_index for sig in signals if sig.type == "recycle"}
+    # Bug #2 fix: skip the NEXT setup9 (same direction) after each recycle,
+    # covering both size_match (same bar) and extended (future bar) cases.
+    recycle_bars: set[int] = set()
+    pending_skip: dict[str, bool] = {"buy": False, "sell": False}
+    for sig in signals:
+        if sig.type == "recycle":
+            pending_skip[sig.direction] = True
+        elif sig.type in ("buy_setup_9", "sell_setup_9"):
+            if pending_skip[sig.direction]:
+                recycle_bars.add(sig.bar_index)
+                pending_skip[sig.direction] = False
 
     opp_setup_at: dict[int, str] = {
         sig.bar_index: sig.type
@@ -148,26 +160,29 @@ def _compute_trades(
         entry_next_open = float(opens[i + 1]) if i + 1 < n else None
         opp_type = "sell_setup_9" if direction == "buy" else "buy_setup_9"
 
+        # TDST take-profit target (fixed at entry time)
+        tp_target: float | None = (
+            _find_tdst_target(sig, tdst_lines, entry_close) if tdst_takeprofit else None
+        )
+
         exit_price: float | None = None
         exit_time: int | None = None
         exit_bars: int | None = None
         exit_type = "end_of_data"
 
         for j in range(i + 1, n):
-            # Stop loss
+            # Stop loss (checked first — risk management priority)
             if stop_type == "close":
-                # Exit only when candle CLOSES beyond risk level
                 stop_hit = (direction == "buy" and float(closes[j]) < risk) or (
                     direction == "sell" and float(closes[j]) > risk
                 )
                 if stop_hit:
-                    exit_price = float(closes[j])   # actual close, not risk level
+                    exit_price = float(closes[j])
                     exit_time = int(open_times[j])
                     exit_bars = j - i
                     exit_type = "risk_level"
                     break
             else:
-                # Exit intrabar when low/high breaches risk level
                 stop_hit = (direction == "buy" and float(lows[j]) < risk) or (
                     direction == "sell" and float(highs[j]) > risk
                 )
@@ -178,12 +193,37 @@ def _compute_trades(
                     exit_type = "risk_level"
                     break
 
-            # Opposite Setup 9 close
+            # TDST take-profit
+            if tp_target is not None:
+                if stop_type == "close":
+                    tp_hit = (direction == "buy" and float(closes[j]) >= tp_target) or (
+                        direction == "sell" and float(closes[j]) <= tp_target
+                    )
+                else:
+                    tp_hit = (direction == "buy" and float(highs[j]) >= tp_target) or (
+                        direction == "sell" and float(lows[j]) <= tp_target
+                    )
+                if tp_hit:
+                    exit_price = tp_target
+                    exit_time = int(open_times[j])
+                    exit_bars = j - i
+                    exit_type = "tdst_target"
+                    break
+
+            # Opposite Setup 9 exit
             if opp_setup_at.get(j) == opp_type:
                 exit_price = float(closes[j])
                 exit_time = int(open_times[j])
                 exit_bars = j - i
                 exit_type = "opposite_setup"
+                break
+
+            # Max bars time-based exit
+            if max_bars > 0 and (j - i) >= max_bars:
+                exit_price = float(closes[j])
+                exit_time = int(open_times[j])
+                exit_bars = j - i
+                exit_type = "max_bars"
                 break
 
         pnl_close = (
@@ -226,6 +266,8 @@ def pnl_backtest_endpoint(
     skip_post_recycle: bool = Query(False),
     stop_type: Literal["intrabar", "close"] = Query("intrabar"),
     min_rr: float = Query(0.0),
+    tdst_takeprofit: bool = Query(False),
+    max_bars: int = Query(0),
 ) -> ORJSONResponse:
     if start >= end:
         raise HTTPException(status_code=400, detail="start must be < end")
@@ -241,6 +283,8 @@ def pnl_backtest_endpoint(
         skip_post_recycle=skip_post_recycle,
         stop_type=stop_type,
         min_rr=min_rr,
+        tdst_takeprofit=tdst_takeprofit,
+        max_bars=max_bars,
     )
     result = PnlBacktestResult(
         symbol=symbol,

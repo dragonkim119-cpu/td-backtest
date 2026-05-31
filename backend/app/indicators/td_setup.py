@@ -151,7 +151,7 @@ def compute_setup(df: pd.DataFrame) -> SetupResult:
             l7 = low[bars[6]]
             ref = min(l6, l7)
             if low[i] <= ref:
-                perfected_buy[i] = True
+                perfected_buy[setup9_i] = True  # flag on setup bar, not this future bar
                 pending_buy_perfected = None
 
         if pending_sell_perfected is not None:
@@ -160,7 +160,7 @@ def compute_setup(df: pd.DataFrame) -> SetupResult:
             h7 = high[bars[6]]
             ref = max(h6, h7)
             if high[i] >= ref:
-                perfected_sell[i] = True
+                perfected_sell[setup9_i] = True  # flag on setup bar, not this future bar
                 pending_sell_perfected = None
 
         tdst_support[i] = active_support

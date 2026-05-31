@@ -65,7 +65,7 @@ class PnlTrade(BaseModel):
     exit_price: float | None = None
     exit_time: int | None = None
     exit_bars: int | None = None
-    exit_type: Literal["risk_level", "opposite_setup", "end_of_data"] = "end_of_data"
+    exit_type: Literal["risk_level", "opposite_setup", "tdst_target", "max_bars", "end_of_data"] = "end_of_data"
     # P&L
     pnl_close_pct: float | None = None
     pnl_next_open_pct: float | None = None

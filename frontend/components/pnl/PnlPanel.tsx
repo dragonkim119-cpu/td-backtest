@@ -209,6 +209,34 @@ export function PnlPanel({ symbol, interval, startMs, endMs, runTrigger }: Props
           <span className="text-[#64748b]">:1</span>
           <span className="text-[#475569] text-[10px]">(0=미적용, TDST 기준)</span>
         </div>
+
+        {/* TDST take-profit */}
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filters.tdstTakeprofit}
+            onChange={(e) => setF("tdstTakeprofit", e.target.checked)}
+            className="accent-blue-500"
+          />
+          <span className="text-[#94a3b8]">TDST 익절</span>
+          <span className="text-[#475569] text-[10px]">(저항/지지선 도달 시)</span>
+        </label>
+
+        {/* Max bars */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[#64748b]">최대 보유</span>
+          <input
+            type="number"
+            min={0}
+            max={200}
+            step={1}
+            value={filters.maxBars}
+            onChange={(e) => setF("maxBars", parseInt(e.target.value) || 0)}
+            className="w-14 text-right font-mono"
+          />
+          <span className="text-[#64748b]">봉</span>
+          <span className="text-[#475569] text-[10px]">(0=무제한)</span>
+        </div>
       </div>
 
       {error && (
@@ -279,6 +307,10 @@ export function PnlPanel({ symbol, interval, startMs, endMs, runTrigger }: Props
                         <span className="text-orange-400">Stop</span>
                       ) : t.exit_type === "opposite_setup" ? (
                         <span className="text-blue-400">Opp.9</span>
+                      ) : t.exit_type === "tdst_target" ? (
+                        <span className="text-green-400">TDST</span>
+                      ) : t.exit_type === "max_bars" ? (
+                        <span className="text-yellow-400">MaxB</span>
                       ) : (
                         <span className="text-[#475569]">미청산</span>
                       )}
