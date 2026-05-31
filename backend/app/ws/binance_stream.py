@@ -10,6 +10,7 @@ import websockets
 
 from app.data.binance import _parquet_path, _load_parquet, _save_parquet
 from app.indicators.td_sequential import run as td_run
+from app.services.telegram import format_signal_message, send_message
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,9 @@ async def run_stream(
                             new_signals, new_tdst, setup_count, countdown_count = (
                                 _signals_for_last_bar(symbol, interval)
                             )
+                            for sig in new_signals:
+                                msg = format_signal_message(sig, symbol, interval)
+                                asyncio.create_task(send_message(msg))
                             payload: dict = {
                                 "type": "close",
                                 "candle": candle_out,
