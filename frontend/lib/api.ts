@@ -60,6 +60,31 @@ export interface BacktestResult {
   }>;
 }
 
+export interface ScreenerRow {
+  symbol: string;
+  interval: string;
+  last_close?: number | null;
+  setup_count?: number | null;
+  countdown_count?: number | null;
+  last_signal_type?: string | null;
+  last_signal_time?: number | null;
+  last_signal_perfected?: boolean | null;
+  last_signal_direction?: string | null;
+  error?: string | null;
+}
+
+export async function fetchScreener(params: {
+  symbols: string[];
+  intervals: string[];
+}): Promise<ScreenerRow[]> {
+  const url = new URL(`${BASE}/api/screener`);
+  url.searchParams.set("symbols", params.symbols.join(","));
+  url.searchParams.set("intervals", params.intervals.join(","));
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  if (!res.ok) throw new Error(`Screener API error ${res.status}`);
+  return res.json() as Promise<ScreenerRow[]>;
+}
+
 export async function fetchBacktest(params: {
   symbol: string;
   interval: string;

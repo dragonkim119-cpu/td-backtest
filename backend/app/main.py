@@ -6,7 +6,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import candles, backtest
+from app.api import candles, backtest, screener
 from app.ws.router import router as ws_router
 
 app = FastAPI(title="TD Backtest API", version="0.1.0")
@@ -20,6 +20,7 @@ app.add_middleware(
 
 app.include_router(candles.router, prefix="/api")
 app.include_router(backtest.router, prefix="/api")
+app.include_router(screener.router, prefix="/api")
 app.include_router(ws_router)
 
 
