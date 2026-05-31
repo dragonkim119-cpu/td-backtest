@@ -73,8 +73,10 @@ export default function Home() {
   }, []);
 
   const handleRun = useCallback(() => {
-    runBacktest(symbol, interval, startMs, endMs);
-  }, [symbol, interval, startMs, endMs, runBacktest]);
+    const now = Date.now();
+    setEndMs(now);
+    runBacktest(symbol, interval, startMs, now);
+  }, [symbol, interval, startMs, runBacktest]);
 
   const handlePreset = (days: number) => {
     setStartMs(msAgo(days));
@@ -82,10 +84,12 @@ export default function Home() {
   };
 
   const handleSelectFromScreener = useCallback((sym: string, iv: string) => {
+    const now = Date.now();
     setSymbol(sym);
     setInterval(iv);
+    setEndMs(now);
     setActiveTab("chart");
-    runBacktest(sym, iv, msAgo(365), Date.now());
+    runBacktest(sym, iv, msAgo(365), now);
   }, [runBacktest]);
 
   const tradingSignals = result?.signals.filter(
@@ -120,9 +124,21 @@ export default function Home() {
             <span className="text-[#64748b] text-sm">{symbol}</span>
 
             {isLive && (
-              <span className="flex items-center gap-1 text-xs text-green-400 border border-green-700 rounded px-1.5 py-0.5">
+              <span className="flex items-center gap-1.5 text-xs border border-green-700 rounded px-1.5 py-0.5">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                LIVE
+                <span className="text-green-400 font-medium">LIVE</span>
+                {liveCandle && (
+                  <>
+                    <span className="text-[#334155]">|</span>
+                    <span className={
+                      result && liveCandle.close >= (result.candles.at(-1)?.close ?? liveCandle.close)
+                        ? "text-green-400 font-mono font-bold"
+                        : "text-red-400 font-mono font-bold"
+                    }>
+                      ${liveCandle.close.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </>
+                )}
               </span>
             )}
 

@@ -98,7 +98,7 @@ def get_candles(
             return cached[mask].reset_index(drop=True)
 
         if cached_max < end_ms:
-            fetch_start = cached_max + 1
+            fetch_start = cached_max  # re-fetch last candle (may be partially open)
         if cached_min > start_ms:
             fetch_end = cached_min - 1
 
