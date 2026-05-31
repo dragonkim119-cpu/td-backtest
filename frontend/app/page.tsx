@@ -141,30 +141,27 @@ export default function Home() {
                 onClick={() => setLiveEnabled((v) => !v)}
                 className={`flex items-center gap-1.5 text-xs border rounded px-1.5 py-0.5 transition-colors ${
                   liveEnabled && isLive
-                    ? "!border-green-700 hover:!border-green-500"
+                    ? "!bg-blue-600 !border-blue-500 !text-white hover:!bg-blue-500"
                     : liveEnabled
-                    ? "!border-yellow-700 hover:!border-yellow-500"
-                    : "!border-[#334155] !text-[#475569] hover:!border-[#475569]"
+                    ? "!bg-yellow-900/40 !border-yellow-700 !text-yellow-400 hover:!border-yellow-500"
+                    : "!bg-[#1e293b] !border-[#334155] !text-[#475569] hover:!border-[#475569]"
                 }`}
               >
                 <span className={`inline-block w-1.5 h-1.5 rounded-full ${
                   liveEnabled && isLive
-                    ? "bg-green-400 animate-pulse"
+                    ? "bg-white animate-pulse"
                     : liveEnabled
                     ? "bg-yellow-400 animate-pulse"
                     : "bg-[#475569]"
                 }`} />
-                <span className={`font-medium ${
-                  liveEnabled && isLive ? "text-green-400" :
-                  liveEnabled ? "text-yellow-400" : "text-[#475569]"
-                }`}>LIVE</span>
+                <span className="font-medium">LIVE</span>
                 {liveEnabled && isLive && liveCandle && (
                   <>
                     <span className="text-[#334155]">|</span>
                     <span className={
                       liveCandle.close >= (result.candles.at(-1)?.close ?? liveCandle.close)
-                        ? "text-green-400 font-mono font-bold"
-                        : "text-red-400 font-mono font-bold"
+                        ? "text-green-300 font-mono font-bold"
+                        : "text-red-300 font-mono font-bold"
                     }>
                       ${liveCandle.close.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
