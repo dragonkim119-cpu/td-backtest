@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import numpy as np
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import ORJSONResponse
@@ -55,7 +57,13 @@ def _build_stats(trades: list[PnlTrade], use_next_open: bool) -> PnlStats:
     )
 
 
-def _compute_trades(df) -> list[PnlTrade]:
+def _compute_trades(
+    df,
+    entry_type: str = "setup9",
+    perfected_only: bool = False,
+    min_risk_pct: float = 0.0,
+    skip_post_recycle: bool = False,
+) -> list[PnlTrade]:
     signals, _, _, _ = td_run(df)
     n = len(df)
     closes = df["close"].values
@@ -64,30 +72,52 @@ def _compute_trades(df) -> list[PnlTrade]:
     highs = df["high"].values
     open_times = df["open_time"].values
 
-    # Precompute opposite setup bars for O(1) lookup
+    # Recycle bar set for skip_post_recycle filter
+    recycle_bars: set[int] = {sig.bar_index for sig in signals if sig.type == "recycle"}
+
+    # Opposite setup lookup (exit condition for both entry types)
     opp_setup_at: dict[int, str] = {
         sig.bar_index: sig.type
         for sig in signals
         if sig.type in ("buy_setup_9", "sell_setup_9")
     }
 
+    # Determine which signal types to use as entries
+    if entry_type == "countdown13":
+        entry_signal_types = ("buy_countdown_13", "sell_countdown_13")
+    else:
+        entry_signal_types = ("buy_setup_9", "sell_setup_9")
+
     trades: list[PnlTrade] = []
 
     for sig in signals:
-        if sig.type not in ("buy_setup_9", "sell_setup_9"):
+        if sig.type not in entry_signal_types:
             continue
         if sig.risk_level is None:
+            continue
+
+        # Perfected filter (setup9 only; countdown13 has no perfected flag)
+        if entry_type == "setup9" and perfected_only and not sig.perfected:
+            continue
+
+        # Skip if recycle fired on the same bar (trend-continuation warning)
+        if skip_post_recycle and sig.bar_index in recycle_bars:
             continue
 
         i = sig.bar_index
         risk = sig.risk_level
         direction = sig.direction
+        entry_close = float(closes[i])
+
+        # Minimum stop distance filter
+        if min_risk_pct > 0:
+            dist_pct = abs(entry_close - risk) / entry_close * 100
+            if dist_pct < min_risk_pct:
+                continue
+
+        entry_next_open = float(opens[i + 1]) if i + 1 < n else None
         opp_type = "sell_setup_9" if direction == "buy" else "buy_setup_9"
 
-        entry_close = float(closes[i])
-        entry_next_open = float(opens[i + 1]) if i + 1 < n else None
-
-        # Priority per bar: stop (intrabar low/high) → opposite Setup 9 (close)
         exit_price: float | None = None
         exit_time: int | None = None
         exit_bars: int | None = None
@@ -147,6 +177,10 @@ def pnl_backtest_endpoint(
     interval: str = Query("4h"),
     start: int = Query(...),
     end: int = Query(...),
+    entry_type: Literal["setup9", "countdown13"] = Query("setup9"),
+    perfected_only: bool = Query(False),
+    min_risk_pct: float = Query(0.0),
+    skip_post_recycle: bool = Query(False),
 ) -> ORJSONResponse:
     if start >= end:
         raise HTTPException(status_code=400, detail="start must be < end")
@@ -154,7 +188,13 @@ def pnl_backtest_endpoint(
     if df.empty:
         raise HTTPException(status_code=404, detail="No candle data found")
 
-    trades = _compute_trades(df)
+    trades = _compute_trades(
+        df,
+        entry_type=entry_type,
+        perfected_only=perfected_only,
+        min_risk_pct=min_risk_pct,
+        skip_post_recycle=skip_post_recycle,
+    )
     result = PnlBacktestResult(
         symbol=symbol,
         interval=interval,

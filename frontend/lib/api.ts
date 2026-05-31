@@ -113,17 +113,37 @@ export interface PnlBacktestResult {
   stats_next_open: PnlStats;
 }
 
+export interface PnlFilters {
+  entryType: "setup9" | "countdown13";
+  perfectedOnly: boolean;
+  minRiskPct: number;
+  skipPostRecycle: boolean;
+}
+
+export const DEFAULT_PNL_FILTERS: PnlFilters = {
+  entryType: "setup9",
+  perfectedOnly: false,
+  minRiskPct: 0,
+  skipPostRecycle: false,
+};
+
 export async function fetchPnlBacktest(params: {
   symbol: string;
   interval: string;
   start: number;
   end: number;
+  filters?: PnlFilters;
 }): Promise<PnlBacktestResult> {
+  const f = params.filters ?? DEFAULT_PNL_FILTERS;
   const url = new URL(`${BASE}/api/pnl-backtest`);
   url.searchParams.set("symbol", params.symbol);
   url.searchParams.set("interval", params.interval);
   url.searchParams.set("start", String(params.start));
   url.searchParams.set("end", String(params.end));
+  url.searchParams.set("entry_type", f.entryType);
+  url.searchParams.set("perfected_only", String(f.perfectedOnly));
+  url.searchParams.set("min_risk_pct", String(f.minRiskPct));
+  url.searchParams.set("skip_post_recycle", String(f.skipPostRecycle));
   const res = await fetch(url.toString(), { cache: "no-store" });
   if (!res.ok) throw new Error(`PnL API error ${res.status}`);
   return res.json() as Promise<PnlBacktestResult>;

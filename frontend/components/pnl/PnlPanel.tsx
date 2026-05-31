@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchPnlBacktest, type PnlBacktestResult, type PnlStats, type PnlTrade } from "@/lib/api";
+import {
+  fetchPnlBacktest,
+  type PnlBacktestResult,
+  type PnlStats,
+  type PnlTrade,
+  type PnlFilters,
+  DEFAULT_PNL_FILTERS,
+} from "@/lib/api";
 
 interface Props {
   symbol: string;
@@ -73,12 +80,17 @@ export function PnlPanel({ symbol, interval, startMs, endMs, runTrigger }: Props
   const [result, setResult] = useState<PnlBacktestResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<PnlFilters>({ ...DEFAULT_PNL_FILTERS });
+
+  function setF<K extends keyof PnlFilters>(key: K, value: PnlFilters[K]) {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function handleRun() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchPnlBacktest({ symbol, interval, start: startMs, end: endMs });
+      const data = await fetchPnlBacktest({ symbol, interval, start: startMs, end: endMs, filters });
       setResult(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -95,14 +107,74 @@ export function PnlPanel({ symbol, interval, startMs, endMs, runTrigger }: Props
   return (
     <div className="flex flex-col gap-4 p-4 overflow-auto h-full">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <span className="text-xs text-[#64748b]">
-          {symbol} {interval} · Setup 9 진입, Risk Level 청산
+          {symbol} {interval}
         </span>
         {loading && <span className="text-xs text-[#64748b]">Calculating…</span>}
         {result && !loading && (
           <span className="text-xs text-[#64748b]">{result.trades.length}개 트레이드</span>
         )}
+      </div>
+
+      {/* Filter panel */}
+      <div className="flex flex-wrap gap-x-5 gap-y-2 p-3 bg-[#0f172a] border border-[#1e293b] rounded text-xs">
+        {/* Entry type toggle */}
+        <div className="flex items-center gap-1">
+          <span className="text-[#64748b] mr-1">진입</span>
+          {(["setup9", "countdown13"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setF("entryType", t)}
+              className={`px-2 py-0.5 rounded text-xs transition-colors ${
+                filters.entryType === t
+                  ? "!bg-blue-600 !text-white"
+                  : "!bg-[#1e293b] !text-[#64748b] hover:!text-[#94a3b8]"
+              }`}
+            >
+              {t === "setup9" ? "Setup 9" : "Countdown 13"}
+            </button>
+          ))}
+        </div>
+
+        {/* Perfected only */}
+        <label className={`flex items-center gap-1.5 cursor-pointer ${
+          filters.entryType === "countdown13" ? "opacity-30 pointer-events-none" : ""
+        }`}>
+          <input
+            type="checkbox"
+            checked={filters.perfectedOnly}
+            onChange={(e) => setF("perfectedOnly", e.target.checked)}
+            className="accent-blue-500"
+          />
+          <span className="text-[#94a3b8]">Perfected only</span>
+        </label>
+
+        {/* Min risk distance */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[#64748b]">최소 스톱 거리</span>
+          <input
+            type="number"
+            min={0}
+            max={10}
+            step={0.5}
+            value={filters.minRiskPct}
+            onChange={(e) => setF("minRiskPct", parseFloat(e.target.value) || 0)}
+            className="w-14 text-right font-mono"
+          />
+          <span className="text-[#64748b]">%</span>
+        </div>
+
+        {/* Skip post-recycle */}
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filters.skipPostRecycle}
+            onChange={(e) => setF("skipPostRecycle", e.target.checked)}
+            className="accent-blue-500"
+          />
+          <span className="text-[#94a3b8]">리사이클 후 제외</span>
+        </label>
       </div>
 
       {error && (
