@@ -214,8 +214,14 @@ export function CandleChart({
   // Live tick: update open candle + zoom to last 200 bars on first tick
   useEffect(() => {
     if (!liveCandle || !seriesRef.current || !chartRef.current) return;
+    const newTime = toChartTime(liveCandle.open_time);
+    // Skip stale ticks — older than last historical bar causes LWC "oldest data" error
+    if (data.candles.length > 0) {
+      const lastTime = toChartTime(data.candles[data.candles.length - 1].open_time);
+      if (newTime < lastTime) return;
+    }
     seriesRef.current.update({
-      time: toChartTime(liveCandle.open_time),
+      time: newTime,
       open: liveCandle.open,
       high: liveCandle.high,
       low: liveCandle.low,
@@ -240,6 +246,11 @@ export function CandleChart({
     if (!liveClose || !seriesRef.current || !markersApiRef.current) return;
     const { candle, new_signals, new_tdst_lines, setup_count, countdown_count } = liveClose;
     const time = toChartTime(candle.open_time);
+    // Skip if stale (same guard as tick update)
+    if (data.candles.length > 0) {
+      const lastTime = toChartTime(data.candles[data.candles.length - 1].open_time);
+      if (time < lastTime) return;
+    }
 
     seriesRef.current.update({
       time,
