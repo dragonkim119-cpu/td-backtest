@@ -4,6 +4,22 @@ from app.indicators.td_sequential import run
 from tests.conftest import buy_setup_closes, make_df
 
 
+def test_recycle_size_match():
+    """Two consecutive buy setups of equal size → size_match recycle on second setup."""
+    # buy_setup_closes(pre=4, length=18) produces two setup 9 signals:
+    # first at bar 12, second at bar 21 (same structural size → ratio ≈ 1.0)
+    closes = buy_setup_closes(pre=4, length=18)   # 22 bars, setups at bars 12 and 21
+    df = make_df(closes)
+    signals, _, _, _ = run(df)
+
+    size_match = [s for s in signals if s.type == "recycle" and s.recycle_reason == "size_match"]
+    assert len(size_match) >= 1, (
+        f"Expected size_match recycle. "
+        f"Got recycles: {[(s.recycle_reason,) for s in signals if s.type == 'recycle']}"
+    )
+    assert size_match[0].direction == "buy"
+
+
 def test_recycle_extended_setup():
     """
     Buy countdown is recycled when same-direction setup count extends to 22+.
