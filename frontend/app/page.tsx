@@ -45,6 +45,8 @@ export default function Home() {
   const [liveClose, setLiveClose] = useState<LiveCloseEvent | null>(null);
   const [isLive, setIsLive] = useState(false);
 
+  const [pnlRunTrigger, setPnlRunTrigger] = useState(0);
+
   useRealtimeCandle(symbol, interval, result !== null && activeTab === "chart", {
     onConnect: () => setIsLive(true),
     onDisconnect: () => setIsLive(false),
@@ -120,11 +122,19 @@ export default function Home() {
           ))}
         </div>
 
-        {activeTab === "chart" && (
+        {activeTab !== "screener" && (
           <>
-            <span className="text-[#64748b] text-sm">{symbol}</span>
+            {/* Symbol input */}
+            <input
+              type="text"
+              value={symbol}
+              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+              className="w-28 font-mono text-sm uppercase"
+              placeholder="BTCUSDT"
+            />
 
-            {isLive && (
+            {/* LIVE badge — chart only */}
+            {activeTab === "chart" && isLive && (
               <span className="flex items-center gap-1.5 text-xs border border-green-700 rounded px-1.5 py-0.5">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                 <span className="text-green-400 font-medium">LIVE</span>
@@ -173,11 +183,18 @@ export default function Home() {
               onChange={(e) => setEndMs(new Date(e.target.value).getTime())}
             />
 
-            <button onClick={handleRun} disabled={loading}>
-              {loading ? "Loading…" : "Run"}
-            </button>
+            {activeTab === "chart" ? (
+              <button onClick={handleRun} disabled={loading}>
+                {loading ? "Loading…" : "Run"}
+              </button>
+            ) : (
+              <button onClick={() => setPnlRunTrigger((t) => t + 1)}>
+                Run PnL
+              </button>
+            )}
 
-            {result && (
+            {/* Chart-only stats */}
+            {activeTab === "chart" && result && (
               <span className="text-xs text-[#64748b]">
                 {result.candles.length} candles · {result.signals.length} signals
               </span>
@@ -202,6 +219,7 @@ export default function Home() {
             interval={interval}
             startMs={startMs}
             endMs={endMs}
+            runTrigger={pnlRunTrigger}
           />
         </div>
       ) : (

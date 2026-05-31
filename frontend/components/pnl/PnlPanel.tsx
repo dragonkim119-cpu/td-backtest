@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { fetchPnlBacktest, type PnlBacktestResult, type PnlStats, type PnlTrade } from "@/lib/api";
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
   interval: string;
   startMs: number;
   endMs: number;
+  runTrigger?: number;
 }
 
 const TZ_OFFSET_MS = -new Date().getTimezoneOffset() * 60 * 1000;
@@ -68,7 +69,7 @@ function StatsCard({ label, stats }: { label: string; stats: PnlStats }) {
   );
 }
 
-export function PnlPanel({ symbol, interval, startMs, endMs }: Props) {
+export function PnlPanel({ symbol, interval, startMs, endMs, runTrigger }: Props) {
   const [result, setResult] = useState<PnlBacktestResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,17 +87,20 @@ export function PnlPanel({ symbol, interval, startMs, endMs }: Props) {
     }
   }
 
+  useEffect(() => {
+    if (runTrigger && runTrigger > 0) handleRun();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runTrigger]);
+
   return (
     <div className="flex flex-col gap-4 p-4 overflow-auto h-full">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={handleRun} disabled={loading} className="px-4 py-1.5 text-sm font-semibold">
-          {loading ? "Calculating…" : "Run PnL Backtest"}
-        </button>
         <span className="text-xs text-[#64748b]">
           {symbol} {interval} · Setup 9 진입, Risk Level 청산
         </span>
-        {result && (
+        {loading && <span className="text-xs text-[#64748b]">Calculating…</span>}
+        {result && !loading && (
           <span className="text-xs text-[#64748b]">{result.trades.length}개 트레이드</span>
         )}
       </div>
@@ -187,7 +191,7 @@ export function PnlPanel({ symbol, interval, startMs, endMs }: Props) {
 
       {!result && !loading && (
         <div className="text-[#334155] text-sm py-8 text-center">
-          Run PnL Backtest 클릭 시 Chart 탭과 동일한 기간·심볼로 실행됩니다
+          심볼·인터벌·날짜 범위 설정 후 상단 Run PnL 버튼을 클릭하세요
         </div>
       )}
     </div>
