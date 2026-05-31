@@ -60,6 +60,8 @@ def _compute_trades(df) -> list[PnlTrade]:
     n = len(df)
     closes = df["close"].values
     opens = df["open"].values
+    lows = df["low"].values
+    highs = df["high"].values
     open_times = df["open_time"].values
 
     trades: list[PnlTrade] = []
@@ -77,17 +79,19 @@ def _compute_trades(df) -> list[PnlTrade]:
         entry_close = float(closes[i])
         entry_next_open = float(opens[i + 1]) if i + 1 < n else None
 
-        # Find exit bar (identical for both entry types)
+        # Find exit bar: check intrabar low/high against risk level.
+        # Exit price = risk level (assumes stop order fills at stop price).
         exit_price: float | None = None
         exit_time: int | None = None
         exit_bars: int | None = None
         exit_type = "end_of_data"
 
         for j in range(i + 1, n):
-            c = float(closes[j])
-            hit = (direction == "buy" and c < risk) or (direction == "sell" and c > risk)
+            hit = (direction == "buy" and float(lows[j]) < risk) or (
+                direction == "sell" and float(highs[j]) > risk
+            )
             if hit:
-                exit_price = c
+                exit_price = risk
                 exit_time = int(open_times[j])
                 exit_bars = j - i
                 exit_type = "risk_level"

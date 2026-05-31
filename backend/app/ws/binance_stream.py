@@ -78,9 +78,9 @@ async def run_stream(
                         candle_out = {k: v for k, v in candle.items() if k != "close_time"}
 
                         if is_final:
-                            _append_to_parquet(symbol, interval, candle)
+                            await asyncio.to_thread(_append_to_parquet, symbol, interval, candle)
                             new_signals, new_tdst, setup_count, countdown_count = (
-                                _signals_for_last_bar(symbol, interval)
+                                await asyncio.to_thread(_signals_for_last_bar, symbol, interval)
                             )
                             for sig in new_signals:
                                 msg = format_signal_message(sig, symbol, interval)

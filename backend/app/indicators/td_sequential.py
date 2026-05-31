@@ -233,6 +233,7 @@ def run(df: pd.DataFrame) -> tuple[list[Signal], list[TDSTLine], list[int], list
             # Start (or restart) buy countdown
             buy_cd = CountdownState(active=True, count=0)
 
+            setup_bars = list(range(start9, i + 1))
             signals.append(Signal(
                 type="buy_setup_9",
                 direction="buy",
@@ -241,6 +242,7 @@ def run(df: pd.DataFrame) -> tuple[list[Signal], list[TDSTLine], list[int], list
                 entry_price=float(close[i]),
                 perfected=setup.perfected_buy[i],
                 tdst_level=support_val,
+                risk_level=_compute_risk_buy(setup_bars, tl, th, high, low, close),
             ))
 
         # ── Sell Setup 9 ───────────────────────────────────────────────────
@@ -291,6 +293,7 @@ def run(df: pd.DataFrame) -> tuple[list[Signal], list[TDSTLine], list[int], list
             # Start (or restart) sell countdown
             sell_cd = CountdownState(active=True, count=0)
 
+            setup_bars = list(range(start9, i + 1))
             signals.append(Signal(
                 type="sell_setup_9",
                 direction="sell",
@@ -299,6 +302,7 @@ def run(df: pd.DataFrame) -> tuple[list[Signal], list[TDSTLine], list[int], list
                 entry_price=float(close[i]),
                 perfected=setup.perfected_sell[i],
                 tdst_level=resistance_val,
+                risk_level=_compute_risk_sell(setup_bars, tl, th, high, low, close),
             ))
 
         if i < 2:
