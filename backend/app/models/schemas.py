@@ -52,7 +52,7 @@ class TDSTLine(BaseModel):
 
 
 class PnlTrade(BaseModel):
-    signal_type: Literal["buy_setup_9", "sell_setup_9"]
+    signal_type: Literal["buy_setup_9", "sell_setup_9", "buy_countdown_13", "sell_countdown_13"]
     direction: Literal["buy", "sell"]
     bar_time: int
     risk_level: float
