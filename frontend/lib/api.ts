@@ -84,7 +84,7 @@ export interface PnlTrade {
   exit_price?: number | null;
   exit_time?: number | null;
   exit_bars?: number | null;
-  exit_type: "risk_level" | "end_of_data";
+  exit_type: "risk_level" | "opposite_setup" | "end_of_data";
   pnl_close_pct?: number | null;
   pnl_next_open_pct?: number | null;
 }

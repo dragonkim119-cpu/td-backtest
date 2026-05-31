@@ -171,6 +171,8 @@ export function PnlPanel({ symbol, interval, startMs, endMs, runTrigger }: Props
                     <td className="py-1.5 px-2 text-center">
                       {t.exit_type === "risk_level" ? (
                         <span className="text-orange-400">Stop</span>
+                      ) : t.exit_type === "opposite_setup" ? (
+                        <span className="text-blue-400">Opp.9</span>
                       ) : (
                         <span className="text-[#475569]">미청산</span>
                       )}

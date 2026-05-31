@@ -64,6 +64,13 @@ def _compute_trades(df) -> list[PnlTrade]:
     highs = df["high"].values
     open_times = df["open_time"].values
 
+    # Precompute opposite setup bars for O(1) lookup
+    opp_setup_at: dict[int, str] = {
+        sig.bar_index: sig.type
+        for sig in signals
+        if sig.type in ("buy_setup_9", "sell_setup_9")
+    }
+
     trades: list[PnlTrade] = []
 
     for sig in signals:
@@ -75,26 +82,35 @@ def _compute_trades(df) -> list[PnlTrade]:
         i = sig.bar_index
         risk = sig.risk_level
         direction = sig.direction
+        opp_type = "sell_setup_9" if direction == "buy" else "buy_setup_9"
 
         entry_close = float(closes[i])
         entry_next_open = float(opens[i + 1]) if i + 1 < n else None
 
-        # Find exit bar: check intrabar low/high against risk level.
-        # Exit price = risk level (assumes stop order fills at stop price).
+        # Priority per bar: stop (intrabar low/high) → opposite Setup 9 (close)
         exit_price: float | None = None
         exit_time: int | None = None
         exit_bars: int | None = None
         exit_type = "end_of_data"
 
         for j in range(i + 1, n):
-            hit = (direction == "buy" and float(lows[j]) < risk) or (
+            # 1. Stop loss — intrabar breach
+            stop_hit = (direction == "buy" and float(lows[j]) < risk) or (
                 direction == "sell" and float(highs[j]) > risk
             )
-            if hit:
+            if stop_hit:
                 exit_price = risk
                 exit_time = int(open_times[j])
                 exit_bars = j - i
                 exit_type = "risk_level"
+                break
+
+            # 2. Opposite Setup 9 close
+            if opp_setup_at.get(j) == opp_type:
+                exit_price = float(closes[j])
+                exit_time = int(open_times[j])
+                exit_bars = j - i
+                exit_type = "opposite_setup"
                 break
 
         pnl_close = (
