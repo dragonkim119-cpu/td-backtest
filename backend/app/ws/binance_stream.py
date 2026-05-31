@@ -15,7 +15,7 @@ from app.services.telegram import format_signal_message, send_message
 logger = logging.getLogger(__name__)
 
 BINANCE_WS_BASE = "wss://stream.binance.com:9443/ws"  # spot WS (fstream blocked in this region)
-CONTEXT_BARS = 300
+CONTEXT_BARS = 500
 
 
 def _parse_kline(kline: dict) -> dict:
