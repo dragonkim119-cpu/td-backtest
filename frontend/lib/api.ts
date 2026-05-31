@@ -115,6 +115,7 @@ export interface PnlBacktestResult {
 
 export interface PnlFilters {
   entryType: "setup9" | "countdown13";
+  direction: "buy" | "sell" | "both";
   perfectedOnly: boolean;
   minRiskPct: number;
   skipPostRecycle: boolean;
@@ -126,6 +127,7 @@ export interface PnlFilters {
 
 export const DEFAULT_PNL_FILTERS: PnlFilters = {
   entryType: "setup9",
+  direction: "both",
   perfectedOnly: false,
   minRiskPct: 0,
   skipPostRecycle: false,
@@ -149,6 +151,7 @@ export async function fetchPnlBacktest(params: {
   url.searchParams.set("start", String(params.start));
   url.searchParams.set("end", String(params.end));
   url.searchParams.set("entry_type", f.entryType);
+  url.searchParams.set("direction", f.direction);
   url.searchParams.set("perfected_only", String(f.perfectedOnly));
   url.searchParams.set("min_risk_pct", String(f.minRiskPct));
   url.searchParams.set("skip_post_recycle", String(f.skipPostRecycle));

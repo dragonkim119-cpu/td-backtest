@@ -92,6 +92,7 @@ def _compute_trades(
     min_rr: float = 0.0,
     tdst_takeprofit: bool = False,
     max_bars: int = 0,
+    direction_filter: str = "both",  # "buy" | "sell" | "both"
 ) -> list[PnlTrade]:
     signals, tdst_lines, _, _ = td_run(df)
     n = len(df)
@@ -135,6 +136,8 @@ def _compute_trades(
         if entry_type == "setup9" and perfected_only and not sig.perfected:
             continue
         if skip_post_recycle and sig.bar_index in recycle_bars:
+            continue
+        if direction_filter != "both" and sig.direction != direction_filter:
             continue
 
         i = sig.bar_index
@@ -268,6 +271,7 @@ def pnl_backtest_endpoint(
     min_rr: float = Query(0.0),
     tdst_takeprofit: bool = Query(False),
     max_bars: int = Query(0),
+    direction: Literal["buy", "sell", "both"] = Query("both"),
 ) -> ORJSONResponse:
     if start >= end:
         raise HTTPException(status_code=400, detail="start must be < end")
@@ -285,6 +289,7 @@ def pnl_backtest_endpoint(
         min_rr=min_rr,
         tdst_takeprofit=tdst_takeprofit,
         max_bars=max_bars,
+        direction_filter=direction,
     )
     result = PnlBacktestResult(
         symbol=symbol,

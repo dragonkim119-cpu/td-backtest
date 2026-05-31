@@ -137,6 +137,28 @@ export function PnlPanel({ symbol, interval, startMs, endMs, runTrigger }: Props
           ))}
         </div>
 
+        {/* Direction filter */}
+        <div className="flex items-center gap-1">
+          <span className="text-[#64748b] mr-1">방향</span>
+          {(["both", "buy", "sell"] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => setF("direction", d)}
+              className={`px-2 py-0.5 rounded text-xs transition-colors ${
+                filters.direction === d
+                  ? d === "buy"
+                    ? "!bg-green-700 !text-white"
+                    : d === "sell"
+                    ? "!bg-red-700 !text-white"
+                    : "!bg-blue-600 !text-white"
+                  : "!bg-[#1e293b] !text-[#64748b] hover:!text-[#94a3b8]"
+              }`}
+            >
+              {d === "both" ? "전체" : d === "buy" ? "▲Buy만" : "▼Sell만"}
+            </button>
+          ))}
+        </div>
+
         {/* Perfected only */}
         <label className={`flex items-center gap-1.5 cursor-pointer ${
           filters.entryType === "countdown13" ? "opacity-30 pointer-events-none" : ""
